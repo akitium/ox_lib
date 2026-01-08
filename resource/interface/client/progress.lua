@@ -239,6 +239,12 @@ RegisterNetEvent('onPlayerDropped', function(serverId)
     deleteProgressProps(serverId)
 end)
 
+local MAX_PROPS_PER_PLAYER = 5
+local BLOCKED_MODELS = {
+    ['anus'] = true,
+    ['prop_ld_ferris_wheel'] = true,
+}
+
 AddStateBagChangeHandler('lib:progressProps', nil, function(bagName, key, value, reserved, replicated)
     if replicated then return end
 
@@ -252,17 +258,30 @@ AddStateBagChangeHandler('lib:progressProps', nil, function(bagName, key, value,
         return deleteProgressProps(serverId)
     end
 
+    deleteProgressProps(serverId)
     createdProps[serverId] = {}
     local playerProps = createdProps[serverId]
 
     if value.model then
-        playerProps[#playerProps + 1] = createProp(ped, value)
+        if BLOCKED_MODELS[value.model:lower()] then
+            return warn(('Blocked prop model "%s" for player %s'):format(value.model, serverId))
+        end
+
+        if #playerProps < MAX_PROPS_PER_PLAYER then
+            playerProps[#playerProps + 1] = createProp(ped, value)
+        end
     else
-        for i = 1, #value do
+        local propsToCreate = math.min(#value, MAX_PROPS_PER_PLAYER)
+
+        for i = 1, propsToCreate do
             local prop = value[i]
 
-            if prop then
-                playerProps[#playerProps + 1] = createProp(ped, prop)
+            if prop and prop.model then
+                if BLOCKED_MODELS[prop.model:lower()] then
+                    warn(('Blocked prop model "%s" for player %s'):format(prop.model, serverId))
+                else
+                    playerProps[#playerProps + 1] = createProp(ped, prop)
+                end
             end
         end
     end
